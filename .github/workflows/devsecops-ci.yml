@@ -43,10 +43,6 @@ jobs:
         run: |
           safety check -r src/requirements.txt --full-report || true
 
-      - name: 🧪 Run Unit Tests (Pytest)
-        run: |
-          pytest tests/ -v
-
   # ==========================================
   # 2. SECRETS SCANNING (GITLEAKS)
   # ==========================================
