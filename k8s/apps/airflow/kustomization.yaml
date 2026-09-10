@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: airflow
+
+resources:
+  - airflow-dags-cm.yaml
+  - airflow-postgres.yaml
+  - airflow-deployment.yaml
+
+commonLabels:
+  app.kubernetes.io/part-of: airflow-etl
+  app.kubernetes.io/managed-by: argocd
+

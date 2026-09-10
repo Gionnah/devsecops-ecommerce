@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Accueil • E-Commerce GitOps & DevSecOps Platform{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="p-5 mb-4 bg-white rounded-3 shadow-sm border border-light-subtle">
+    <div class="container-fluid py-2">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle mb-2 px-3 py-1">
+                    <i class="bi bi-clouds-fill me-1"></i> Architecture Cloud Native & GitOps
+                </span>
+                <h1 class="display-5 fw-bold text-dark">Plateforme E-Commerce CRUD</h1>
+                <p class="col-md-11 fs-5 text-muted">
+                    Déployée via un pipeline <strong>GitOps automatisé (GitHub, ArgoCD, Kubernetes)</strong>, 
+                    sécurisée avec <strong>Nginx Ingress SSL</strong> (<span class="text-primary font-monospace">www.ecommerce.lcl</span>), 
+                    et couplée à un orchestrateur <strong>ETL Apache Airflow</strong> pour l'analyse des ventes.
+                </p>
+                <div class="d-flex flex-wrap gap-2 pt-2">
+                    <a href="{{ url_for('main.products') }}" class="btn btn-primary btn-lg px-4 shadow-sm">
+                        <i class="bi bi-box-seam me-2"></i> Gérer les Produits
+                    </a>
+                    <a href="{{ url_for('main.orders') }}" class="btn btn-outline-dark btn-lg px-4">
+                        <i class="bi bi-cart-plus me-2"></i> Passer une Commande
+                    </a>
+                    <a href="{{ url_for('main.analytics') }}" class="btn btn-outline-info btn-lg px-4">
+                        <i class="bi bi-graph-up-arrow me-2"></i> Voir les Analytics ETL
+                    </a>
+                </div>
+            </div>
+            <div class="col-lg-4 text-center mt-4 mt-lg-0">
+                <div class="card border-0 bg-primary text-white shadow p-4 text-center rounded-4">
+                    <i class="bi bi-shield-lock-fill display-3 mb-2 text-warning"></i>
+                    <h4 class="fw-bold">DevSecOps Standard</h4>
+                    <p class="small text-white-50 mb-0">Scanné avec Hadolint, Gitleaks, Bandit & Trivy. Zéro vulnérabilité critique tolérée.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Stats Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-primary border-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-muted text-uppercase fw-semibold small">Catalogue Produits</span>
+                    <h2 class="fw-bold mb-0 text-dark">{{ products_count }}</h2>
+                </div>
+                <div class="bg-primary-subtle text-primary p-3 rounded-circle">
+                    <i class="bi bi-box-seam fs-3"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-success border-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-muted text-uppercase fw-semibold small">Commandes Enregistrées</span>
+                    <h2 class="fw-bold mb-0 text-dark">{{ orders_count }}</h2>
+                </div>
+                <div class="bg-success-subtle text-success p-3 rounded-circle">
+                    <i class="bi bi-cart-check fs-3"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-3 p-3 bg-white border-start border-info border-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-muted text-uppercase fw-semibold small">Chiffre d'Affaires</span>
+                    <h2 class="fw-bold mb-0 text-dark">{{ total_sales }} €</h2>
+                </div>
+                <div class="bg-info-subtle text-info p-3 rounded-circle">
+                    <i class="bi bi-cash-stack fs-3"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Architecture Summary Box -->
+<div class="card border-0 shadow-sm rounded-3 mb-4 bg-white">
+    <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
+        <h4 class="fw-bold text-dark"><i class="bi bi-diagram-3-fill text-primary me-2"></i> Pipeline & Flux GitOps</h4>
+    </div>
+    <div class="card-body p-4">
+        <div class="row g-4">
+            <div class="col-md-3">
+                <div class="p-3 bg-light rounded-3 h-100 border">
+                    <h6 class="fw-bold text-dark"><i class="bi bi-github me-2 text-dark"></i> 1. Code & DevSecOps</h6>
+                    <p class="small text-muted mb-0">Push sur GitHub déclenchant les scans SAST, SCA, Hadolint et Trivy Container.</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="p-3 bg-light rounded-3 h-100 border">
+                    <h6 class="fw-bold text-dark"><i class="bi bi-arrow-repeat me-2 text-danger"></i> 2. ArgoCD Sync</h6>
+                    <p class="small text-muted mb-0">ArgoCD surveille le repo Git et applique l'état désiré dans le cluster K8s automatiquement.</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="p-3 bg-light rounded-3 h-100 border">
+                    <h6 class="fw-bold text-dark"><i class="bi bi-lock-fill me-2 text-success"></i> 3. Nginx Ingress SSL</h6>
+                    <p class="small text-muted mb-0">Terminaison TLS avec certificat SSL local sur <code>www.ecommerce.lcl</code>.</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="p-3 bg-light rounded-3 h-100 border">
+                    <h6 class="fw-bold text-dark"><i class="bi bi-gear-wide-connected me-2 text-info"></i> 4. Airflow ETL</h6>
+                    <p class="small text-muted mb-0">Orchestrateur Airflow extrayant les ventes périodiquement pour générer le datamart d'analyse.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Products Showcase -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="fw-bold text-dark mb-0"><i class="bi bi-stars text-warning me-2"></i> Produits Récents</h4>
+    <a href="{{ url_for('main.products') }}" class="btn btn-sm btn-outline-primary">Voir tout le catalogue</a>
+</div>
+
+<div class="row row-cols-1 row-cols-md-3 g-4">
+    {% for product in recent_products %}
+    <div class="col">
+        <div class="card h-100 border-0 shadow-sm rounded-3 overflow-hidden product-card bg-white">
+            <img src="{{ product.image_url }}" class="card-img-top object-fit-cover" height="200" alt="{{ product.name }}">
+            <div class="card-body d-flex flex-column">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <span class="badge bg-secondary-subtle text-secondary">{{ product.category }}</span>
+                    <span class="badge {% if product.stock > 5 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %}">
+                        Stock: {{ product.stock }}
+                    </span>
+                </div>
+                <h5 class="card-title fw-bold text-dark">{{ product.name }}</h5>
+                <p class="card-text text-muted small flex-grow-1">{{ product.description }}</p>
+                <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
+                    <span class="fs-5 fw-bold text-primary">{{ product.price }} €</span>
+                    <a href="{{ url_for('main.product_edit', product_id=product.id) }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-pencil me-1"></i> Modifier
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
+

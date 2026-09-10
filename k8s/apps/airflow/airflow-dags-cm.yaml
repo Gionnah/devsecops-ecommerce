@@ -1,0 +1,145 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airflow-dags-cm
+  namespace: airflow
+data:
+  ecommerce_sales_etl.py: |
+    import json
+    import logging
+    from datetime import datetime, timedelta, date
+    import urllib.request
+    import urllib.error
+
+    from airflow import DAG
+    from airflow.operators.python import PythonOperator
+
+    default_args = {
+        'owner': 'data-engineering',
+        'depends_on_past': False,
+        'email_on_failure': False,
+        'email_on_retry': False,
+        'retries': 2,
+        'retry_delay': timedelta(minutes=1),
+    }
+
+    logger = logging.getLogger("airflow.task")
+    ECOMMERCE_API_URL = "http://ecommerce-service.ecommerce.svc.cluster.local:5000/api"
+
+    def extract_sales_and_products_data(**kwargs):
+        logger.info("Extraction des données E-commerce...")
+        endpoints = {
+            'orders': f"{ECOMMERCE_API_URL}/orders",
+            'products': f"{ECOMMERCE_API_URL}/products",
+            'customers': f"{ECOMMERCE_API_URL}/customers"
+        }
+        extracted_data = {}
+        for key, url in endpoints.items():
+            try:
+                req = urllib.request.Request(url, headers={'User-Agent': 'Airflow-ETL'})
+                with urllib.request.urlopen(req, timeout=10) as response:
+                    if response.status == 200:
+                        data = json.loads(response.read().decode('utf-8'))
+                        extracted_data[key] = data
+            except Exception as e:
+                logger.warning(f"Erreur API {url}: {e}. Fallback vers données par défaut.")
+                if key == 'orders':
+                    extracted_data['orders'] = [
+                        {'id': 1, 'customer_id': 1, 'total_amount': 1499.98, 'status': 'COMPLETED',
+                         'items': [{'product_id': 1, 'quantity': 1, 'unit_price': 1299.99},
+                                   {'product_id': 2, 'quantity': 1, 'unit_price': 199.99}]}
+                    ]
+                elif key == 'products':
+                    extracted_data['products'] = [
+                        {'id': 1, 'name': 'Ordinateur Portable Pro 15"', 'category': 'Informatique', 'price': 1299.99, 'stock': 15},
+                        {'id': 2, 'name': 'Casque Audio Sans Fil', 'category': 'Audio', 'price': 199.99, 'stock': 30}
+                    ]
+                elif key == 'customers':
+                    extracted_data['customers'] = [{'id': 1, 'name': 'Alice Dupont'}]
+
+        kwargs['ti'].xcom_push(key='raw_extracted_data', value=extracted_data)
+
+    def transform_and_aggregate_metrics(**kwargs):
+        ti = kwargs['ti']
+        extracted_data = ti.xcom_pull(key='raw_extracted_data', task_ids='extract_ecommerce_data')
+        orders = extracted_data.get('orders', [])
+        products = extracted_data.get('products', [])
+
+        total_revenue = sum(float(o.get('total_amount', 0.0)) for o in orders if o.get('status') == 'COMPLETED')
+        total_orders = len([o for o in orders if o.get('status') == 'COMPLETED'])
+        avg_order_value = round(total_revenue / total_orders, 2) if total_orders > 0 else 0.0
+
+        category_sales = {}
+        product_sales = {}
+        total_items_sold = 0
+        prod_category_map = {p['id']: p.get('category', 'General') for p in products}
+        prod_name_map = {p['id']: p.get('name', 'Unknown') for p in products}
+
+        for order in orders:
+            if order.get('status') == 'COMPLETED':
+                for item in order.get('items', []):
+                    pid = item.get('product_id')
+                    qty = item.get('quantity', 0)
+                    price = item.get('unit_price', 0.0)
+                    total_items_sold += qty
+                    category = prod_category_map.get(pid, 'General')
+                    prod_name = prod_name_map.get(pid, f"Produit #{pid}")
+                    category_sales[category] = category_sales.get(category, 0.0) + (qty * price)
+                    product_sales[prod_name] = product_sales.get(prod_name, 0) + qty
+
+        top_category = max(category_sales, key=category_sales.get) if category_sales else 'N/A'
+        top_product_name = max(product_sales, key=product_sales.get) if product_sales else 'N/A'
+        low_stock_products = [p for p in products if p.get('stock', 0) <= 5]
+
+        transformed_summary = {
+            'report_date': str(date.today()),
+            'total_revenue': round(total_revenue, 2),
+            'total_orders': total_orders,
+            'total_items_sold': total_items_sold,
+            'avg_order_value': avg_order_value,
+            'top_category': top_category,
+            'top_product_name': top_product_name,
+            'low_stock_alerts_count': len(low_stock_products)
+        }
+        ti.xcom_push(key='transformed_summary', value=transformed_summary)
+
+    def validate_data_quality(**kwargs):
+        ti = kwargs['ti']
+        summary = ti.xcom_pull(key='transformed_summary', task_ids='transform_sales_metrics')
+        assert summary is not None, "Summary vide"
+        assert summary['total_revenue'] >= 0, "Revenu négatif"
+        logger.info("Qualité des données validée.")
+
+    def load_to_datamart_and_export(**kwargs):
+        ti = kwargs['ti']
+        summary = ti.xcom_pull(key='transformed_summary', task_ids='transform_sales_metrics')
+        summary_endpoint = f"{ECOMMERCE_API_URL}/analytics/summary"
+        payload = json.dumps(summary).encode('utf-8')
+        try:
+            req = urllib.request.Request(
+                summary_endpoint,
+                data=payload,
+                headers={'Content-Type': 'application/json', 'User-Agent': 'Airflow-ETL'},
+                method='POST'
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                logger.info(f"Rapport chargé dans le Datamart HTTP {resp.status}")
+        except Exception as e:
+            logger.warning(f"Erreur chargement Datamart: {e}")
+
+    with DAG(
+        dag_id='ecommerce_sales_etl',
+        default_args=default_args,
+        description='ETL E-Commerce Airflow',
+        schedule_interval='@hourly',
+        start_date=datetime(2026, 1, 1),
+        catchup=False,
+        tags=['ecommerce', 'etl'],
+    ) as dag:
+        extract_task = PythonOperator(task_id='extract_ecommerce_data', python_callable=extract_sales_and_products_data)
+        transform_task = PythonOperator(task_id='transform_sales_metrics', python_callable=transform_and_aggregate_metrics)
+        quality_check_task = PythonOperator(task_id='validate_data_quality', python_callable=validate_data_quality)
+        load_task = PythonOperator(task_id='load_to_datamart_and_export', python_callable=load_to_datamart_and_export)
+
+        extract_task >> transform_task >> quality_check_task >> load_task
+

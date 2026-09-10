@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-deployment
+  namespace: airflow
+  labels:
+    app: airflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airflow
+  template:
+    metadata:
+      labels:
+        app: airflow
+    spec:
+      containers:
+        - name: airflow-standalone
+          image: apache/airflow:2.9.2-python3.11
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/bash"]
+          args:
+            - "-c"
+            - |
+              airflow db migrate && \
+              airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@ecommerce.lcl --password admin_airflow_2026 || true && \
+              airflow standalone
+          ports:
+            - containerPort: 8080
+              name: airflow-ui
+          env:
+            - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+              value: "postgresql+psycopg2://airflow:airflow@airflow-postgres-service.airflow.svc.cluster.local:5432/airflow"
+            - name: AIRFLOW__CORE__EXECUTOR
+              value: "LocalExecutor"
+            - name: AIRFLOW__CORE__LOAD_EXAMPLES
+              value: "False"
+            - name: AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION
+              value: "False"
+            - name: AIRFLOW__WEBSERVER__EXPOSE_CONFIG
+              value: "False"
+            - name: AIRFLOW__WEBSERVER__SECRET_KEY
+              value: "airflow_secret_key_devsecops_2026"
+            - name: AIRFLOW__CORE__DAGS_FOLDER
+              value: "/opt/airflow/dags"
+          volumeMounts:
+            - name: dags-volume
+              mountPath: /opt/airflow/dags/ecommerce_sales_etl.py
+              subPath: ecommerce_sales_etl.py
+          resources:
+            limits:
+              cpu: "1000m"
+              memory: "2048Mi"
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 5
+      volumes:
+        - name: dags-volume
+          configMap:
+            name: airflow-dags-cm
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: airflow-service
+  namespace: airflow
+  labels:
+    app: airflow
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: airflow
